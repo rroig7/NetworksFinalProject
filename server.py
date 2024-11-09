@@ -44,7 +44,6 @@ def handle_client (conn,addr):
             conn.send(send_data.encode(FORMAT))
         elif cmd == "SIGNUP":
             print("[ACCOUNT CREATION] Starting process...")
-            # TODO: Clean this up, shouldn't have all this code here.
             username = conn.recv(SIZE).decode(FORMAT)
             password = conn.recv(SIZE).decode(FORMAT)
 
