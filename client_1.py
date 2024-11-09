@@ -2,6 +2,7 @@
 
 import os
 import socket
+import hashlib
 
 
 # IP = "192.168.1.101" #"localhost"
@@ -35,6 +36,23 @@ def main():
         elif cmd == "LOGOUT":
             client.send(cmd.encode(FORMAT))
             break
+
+        elif cmd == "SIGNUP":
+            client.send(cmd.encode(FORMAT))
+
+            username = input(f"Please enter your username: ")
+            password = input("Please enter your password: ")
+            hashedPassword = hashlib.sha256(password.encode(FORMAT)).hexdigest()
+
+            client.send(username.encode(FORMAT))
+            client.send(hashedPassword.encode(FORMAT))
+
+            print("Waiting for response...")
+
+        else:
+            client.send(cmd.encode(FORMAT))
+            continue
+
       
 
 
