@@ -7,6 +7,8 @@
 import os
 import socket
 import threading
+import ssl
+
 
 IP = "localhost"
 PORT = 4450
@@ -26,13 +28,13 @@ def handle_client (conn,addr):
         data =  conn.recv(SIZE).decode(FORMAT)
         data = data.split("@")
         cmd = data[0]
-       
+
         send_data = "OK@"
 
         if cmd == "LOGOUT":
             break
 
-        elif cmd == "TASK": 
+        elif cmd == "TASK":
             send_data += "LOGOUT from the server.\n"
 
             conn.send(send_data.encode(FORMAT))
@@ -49,10 +51,16 @@ def main():
     server.bind(ADDR) # bind the address
     server.listen() ## start listening
     print(f"server is listening on {IP}: {PORT}")
-    while True:
-        conn, addr = server.accept() ### accept a connection from a client
-        thread = threading.Thread(target = handle_client, args = (conn, addr)) ## assigning a thread for each client
-        thread.start()
+    context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    context.load_cert_chain(certfile="cert.pem", keyfile="private.key")
+
+    context.set_ciphers('ALL')
+    context.set_servername_callback(lambda s, c, h: print(f'SSL Handshake with client: {h}'))
+    with context.wrap_socket(server, server_side=True) as ssock:
+        while True:
+            conn, addr = ssock.accept() ### accept a connection from a client
+            thread = threading.Thread(target = handle_client, args = (conn, addr)) ## assigning a thread for each client
+            thread.start()
 
 
 if __name__ == "__main__":
