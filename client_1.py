@@ -2,16 +2,20 @@
 
 import os
 import socket
+import ssl
+import logging
 import hashlib
 
 
 # IP = "192.168.1.101" #"localhost"
 IP = "localhost"
 PORT = 4450
-ADDR = (IP, PORT)
+ADDR = (IP,PORT)
 SIZE = 1024 ## byte .. buffer size
 FORMAT = "utf-8"
 SERVER_DATA_PATH = "server_data"
+logging.basicConfig(level=logging.DEBUG)
+
 
 def main():
     
@@ -28,7 +32,7 @@ def main():
         elif cmd == "PRINT":
             print(f"{msg}")
             continue
-        
+
         data = input("> ")
         if data == "":
             client.send("Not".encode(FORMAT))
@@ -70,7 +74,7 @@ def main():
             client.send(cmd.encode(FORMAT))
             continue
 
-      
+
 
 
 
