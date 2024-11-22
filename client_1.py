@@ -25,8 +25,13 @@ def main():
         elif cmd == "DISCONNECTED":
             print(f"{msg}")
             break
+        elif cmd == "PRINT":
+            print(f"{msg}")
+            continue
         
-        data = input("> ") 
+        data = input("> ")
+        if data == "":
+            client.send("Not".encode(FORMAT))
         data = data.split(" ")
         cmd = data[0]
 
@@ -38,6 +43,18 @@ def main():
             break
 
         elif cmd == "SIGNUP":
+            client.send(cmd.encode(FORMAT))
+
+            username = input(f"Please enter your username: ")
+            password = input("Please enter your password: ")
+            hashedPassword = hashlib.sha256(password.encode(FORMAT)).hexdigest()
+
+            client.send(username.encode(FORMAT))
+            client.send(hashedPassword.encode(FORMAT))
+
+            print("Waiting for response...")
+
+        elif cmd == "LOGIN":
             client.send(cmd.encode(FORMAT))
 
             username = input(f"Please enter your username: ")

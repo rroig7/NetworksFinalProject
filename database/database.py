@@ -18,4 +18,8 @@ def loadUsers():
 
 
 def checkForExistingUser(username):
-    return any(user['username'] == username for user in loadUsers())
+    # Iterate through the list of users to find a match
+    for user in loadUsers():
+        if user['username'] == username:
+            return user  # Return the matching user dictionary
+    return None  # Return None if no matching user is found
