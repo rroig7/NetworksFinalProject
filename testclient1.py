@@ -45,11 +45,14 @@ def main():
                 ssock.send(cmd.encode(FORMAT))
             if cmd == "UPLOAD":
                 fileName = input("> ")
-                fileToSend = open(fileName, 'rb');
-                filedata = fileToSend.read(1024)
-                ssock.send(cmd.encode(FORMAT),filedata)
-                #ssock.send(filedata)
-                #.encode(FORMAT))
+                if os.path.exists(fileName):
+                    fileToSend = open(fileName, 'rb')
+                    ssock.send(cmd.encode(FORMAT))  
+                    while (filedata := fileToSend.read(SIZE)):  # Read and send file in chunks
+                        ssock.send(filedata)
+                    print(f"File '{fileName}' sent successfully.")
+                else:
+                    print(f"File '{fileName}' not found.")
             elif cmd == "LOGOUT":
                 ssock.send(cmd.encode(FORMAT))
                 break
