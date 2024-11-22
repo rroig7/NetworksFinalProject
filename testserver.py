@@ -22,14 +22,11 @@ SERVER_PATH = "server"
 
 def client_uploads(stream, f):
 	while True:
-		#read from stream and store
-		data = ssock.recv(1024)
-		if not data:
-			break
-		else:
-			#write data from stream.recv(..) to file
-			f.write(data)
-	#f.close()
+        	filedata = conn.recv(1024)
+	        if not data:
+	            break
+	        f.write(data)  # Write received data to file
+        f.close()
 
 
 def handle_client (conn,addr):
@@ -48,16 +45,13 @@ def handle_client (conn,addr):
         if cmd == "LOGOUT":
             break
         if cmd == "UPLOAD":
-                f = open('decrypted#' + str(index), 'wb')
-          	index +=1
-          	
-          	print("'Connection established from " + str(fromaddr))
-          	try:
-          	
-          		p1 = threading.Thread(target=client_uploads, args=(ssock, f))
-          		#start thread
-          		p1.start()
-          	except KeyboardInterrupt:
+            index = 0
+            f = open(f'decrypted#{index}.bin', 'wb')
+            print(f"Receiving file from {addr}")
+            try:
+                threading.Thread(target=client_uploads, args=(conn, f)).start()
+            except Exception as e:
+                print(f"Error: {e}")
                 break
           	except Exception:
           			print('\n Error in handling client\n')
