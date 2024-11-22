@@ -44,7 +44,7 @@ def main():
             if cmd == "TASK":
                 ssock.send(cmd.encode(FORMAT))
             if cmd == "UPLOAD":
-                ssock.send(file.encode(FORMAT))
+                ssock.send(filedata.encode(FORMAT))
             elif cmd == "LOGOUT":
                 ssock.send(cmd.encode(FORMAT))
                 break
