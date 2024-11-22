@@ -21,7 +21,6 @@ SERVER_PATH = "server"
 ### to handle the clients
 
 def client_uploads(stream, f):
-	print('-----------------------------------------\n')
 	while True:
 		#read from stream and store
 		data = stream.recv(1024)
@@ -30,9 +29,7 @@ def client_uploads(stream, f):
 		else:
 			#write data from stream.recv(..) to file
 			f.write(data)
-	print('End Of File received, closing connection...')
-	print('-----------------------------------------\n')
-	f.close()
+	#f.close()
 
 
 def handle_client (conn,addr):
