@@ -7,6 +7,7 @@
 import os
 import socket
 import threading
+from database import database
 
 IP = "localhost"
 PORT = 4450  # listening on this port
@@ -15,51 +16,52 @@ SIZE = 1024
 FORMAT = "utf-8"
 SERVER_PATH = "server"
 
-active_connections = []
+
+def sendToClient(conn, msg):
+    send_data = "OK@" + msg
+    conn.send(send_data.encode(FORMAT))
 
 
-def print_connections():
-    print("\n--- Active Connections ---")
-    if len(active_connections) == 0:
-        print("No active connections.")
-    else:
-        for conn in active_connections:
-            addr = conn.getpeername()
-            print(f"IP: {addr[0]}, Port: {addr[1]}")
-    print("---------------------------\n")
-
-
-### to handle the clients
+# to handle the clients
 def handle_client(conn, addr):
     print(f"[NEW CONNECTION] {addr} connected.")
     conn.send("OK@Welcome to the server".encode(FORMAT))
-    active_connections.append(conn)
+
+
+
     while True:
         data = conn.recv(SIZE).decode(FORMAT)
-        if data == "":
-            continue
-
-        # data = data.split("@")
-        # print(f"{data} this is with data split\n")
-
-        send_data = "OK@"
 
         cmd = data
 
-        if cmd == "LOGOUT":
-            print(f"{addr} requested to LOGOUT.")
+        if cmd == "LOGOUT":  # If LOGOUT is received from client, then send client DISCONNECTED@ message
+            print(f"{addr} requested to LOGOUT.")  # This is for the server
             conn.send("DISCONNECTED@".encode(FORMAT))  # Exit the loop and disconnect the client.
             break
-        if len(str.encode(cmd)) > 0:
-            if cmd == "TASK":
-                send_data += "LOGOUT from the server.\n"
-                conn.send(send_data.encode(FORMAT))
+        elif len(str.encode(cmd)) > 0:
+            if cmd == "TASK":  # If TASK is received from client, send the following message
+                sendToClient(conn, "LOGOUT from the server. \nSIGNUP for the server.")
+            elif cmd == "SIGNUP":
+                print("[ACCOUNT CREATION] Starting process...")
+                username = conn.recv(SIZE).decode(FORMAT)
+                password = conn.recv(SIZE).decode(FORMAT)
+
+                user = {
+                    "username": username,
+                    "password": password
+                }
+
+                if not database.checkForExistingUser(username):
+                    database.saveUser(user)
+                    print(f"[ACCOUNT CREATION] {username} created successfully.")
+                    sendToClient(conn, "Account creation successful.")
+                else:
+                    print(f"[EXISTING USER] {username} account not created.")
+                    sendToClient(conn, "[ERROR] This account already exists.")
             else:
-                send_data += "Not a valid command"
-                conn.send(send_data.encode(FORMAT))
+                sendToClient(conn, "[Error] Invalid command.")
 
     print(f"{addr} disconnected")
-    active_connections.remove(conn)
     conn.close()
 
 
