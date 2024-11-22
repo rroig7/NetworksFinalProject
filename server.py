@@ -17,14 +17,16 @@ SIZE = 1024
 FORMAT = "utf-8"
 SERVER_PATH = "server"
 
+
+
 ### to handle the clients
 def handle_client (conn,addr):
 
-
-
-
     print(f"[NEW CONNECTION] {addr} connected.")
     conn.send("OK@Welcome to the server, if you don't have an account, please create one by entering SIGNUP".encode(FORMAT))
+
+    def sendToClient(msg):
+        conn.send(msg.encode(FORMAT))
 
     while True:
 
