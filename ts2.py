@@ -40,8 +40,26 @@ def handle_client(conn, addr):
                     if filedata == b'EOF':
                         break
                     f.write(filedata)
-                    print(filedata)
+                    #print(filedata)
             print(f"File {filename} received successfully.")
+        elif cmd == "DOWNOAD":
+            filename = conn.recv(SIZE).decode(FORMAT)
+            print(f"Preparing to send file {filename} to {addr}")
+
+            try:
+                with open(filename, "rb") as fileToSend:
+
+                    while True:
+                        filedata = fileToSend.read(SIZE)
+                        if not filedata:
+                            break
+                        conn.send(filedata)
+                        print(f"Sent chunk of {len(filedata)} bytes.")
+                    conn.send(b'EOF')
+                    print(f"File {filename} sent successfully.")
+            except FileNotFoundError:
+                conn.send("ERROR@File not found".encode(FORMAT))
+                print(f"File {filename} not found.")
 
         elif cmd == "TASK":
             send_data += "LOGOUT from the server.\n"
