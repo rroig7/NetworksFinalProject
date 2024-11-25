@@ -64,6 +64,18 @@ def main():
                             break
                         fileToWrite.write(filedata)
                         print(f"Received chunk of {len(filedata)} bytes.")
+            elif cmd == "DELETE":
+                fileName = input("Enter the filename to delete: ")
+                ssock.send(cmd.encode(FORMAT))  # Send DELETE command
+                ssock.send(fileName.encode(FORMAT))  # Send the filename to the server
+
+                # Receive confirmation from server
+                response = ssock.recv(SIZE).decode(FORMAT)
+                if response == "OK":
+                    print(f"File '{fileName}' deleted successfully.")
+                else:
+                    print(f"Error: {response}")
+
             elif cmd == "LOGOUT":
                 ssock.send(cmd.encode(FORMAT))
                 break
