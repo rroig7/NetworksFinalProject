@@ -50,6 +50,20 @@ def main():
                             ssock.send(filedata)
                         ssock.send(b'EOF')
                     print(f"File '{fileName}' sent successfully.")
+            elif cmd == "DOWNLOAD":
+                fileName = input("Enter the filename to download: ")
+                ssock.send(cmd.encode(FORMAT))
+                ssock.send(fileName.encode(FORMAT))
+
+
+                with open(f"downloaded_{fileName}", 'wb') as fileToWrite:
+                    while True:
+                        filedata = ssock.recv(SIZE)
+                        if filedata == b'EOF':
+                            print(f"Download complete for {fileName}")
+                            break
+                        fileToWrite.write(filedata)
+                        print(f"Received chunk of {len(filedata)} bytes.")
             elif cmd == "LOGOUT":
                 ssock.send(cmd.encode(FORMAT))
                 break
