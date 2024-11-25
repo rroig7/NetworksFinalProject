@@ -48,8 +48,8 @@ def main():
                     with open(fileName, 'rb') as fileToSend:
                         while (filedata := fileToSend.read(SIZE)):
                             ssock.send(filedata)
-                        ssock.send(b'')
-                        print(f"File '{fileName}' sent successfully.")
+                        ssock.send(b'EOF')
+                    print(f"File '{fileName}' sent successfully.")
             elif cmd == "LOGOUT":
                 ssock.send(cmd.encode(FORMAT))
                 break
