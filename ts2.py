@@ -37,9 +37,10 @@ def handle_client(conn, addr):
             with open(f"received_{filename}", "wb") as f:
                 while True:
                     filedata = conn.recv(SIZE)
-                    if not filedata:
+                    if filedata == b'EOF':
                         break
                     f.write(filedata)
+                    print(filedata)
             print(f"File {filename} received successfully.")
 
         elif cmd == "TASK":
