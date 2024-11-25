@@ -60,7 +60,21 @@ def handle_client(conn, addr):
             except FileNotFoundError:
                 conn.send("ERROR@File not found".encode(FORMAT))
                 print(f"File {filename} not found.")
+        elif cmd == "DELETE":
+            filename = conn.recv(SIZE).decode(FORMAT)  # Receive the filename
+            print(f"Deleting file {filename} requested by {addr}")
 
+            try:
+                if os.path.exists(filename):
+                    os.remove(filename)
+                    conn.send("OK".encode(FORMAT))
+                    print(f"File {filename} deleted successfully.")
+                else:
+                    conn.send("ERROR@File not found".encode(FORMAT))
+                    print(f"File {filename} not found.")
+            except Exception as e:
+                conn.send(f"ERROR@{str(e)}".encode(FORMAT))
+                print(f"Error deleting file {filename}: {str(e)}")
         elif cmd == "TASK":
             send_data += "LOGOUT from the server.\n"
             conn.send(send_data.encode(FORMAT))
