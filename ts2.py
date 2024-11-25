@@ -42,7 +42,7 @@ def handle_client(conn, addr):
                     f.write(filedata)
                     #print(filedata)
             print(f"File {filename} received successfully.")
-        elif cmd == "DOWNOAD":
+        elif cmd == "DOWNLOAD":
             filename = conn.recv(SIZE).decode(FORMAT)
             print(f"Preparing to send file {filename} to {addr}")
 
