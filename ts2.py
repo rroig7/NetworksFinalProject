@@ -34,6 +34,14 @@ def handle_client(conn, addr):
 
             filename = conn.recv(SIZE).decode(FORMAT)  # Receive the file name
             print(f"Receiving file from {addr} with filename {filename}")
+            if os.path.exists(f"received_{filename}"):
+                base_name, ext = os.path.splitext(filename)
+                counter = 1
+                new_file_name = f"received_{base_name}_copy{ext}"
+                while os.path.exists(new_file_name):
+                    new_file_name = f"received_{base_name}_copy{counter}{ext}"
+                    counter += 1
+                filename = new_file_name
             with open(f"received_{filename}", "wb") as f:
                 while True:
                     filedata = conn.recv(SIZE)
