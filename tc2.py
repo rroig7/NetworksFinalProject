@@ -2,30 +2,26 @@ import os
 import socket
 import ssl
 import logging
-import pprint
 import time
 
-# IP = "192.168.1.101"  # Use localhost for testing
 IP = "localhost"
 PORT = 4450
 ADDR = (IP, PORT)
-SIZE = 1024  # Buffer size in bytes
+SIZE = 1024
 FORMAT = "utf-8"
 SERVER_DATA_PATH = "server_data"
 
 logging.basicConfig(level=logging.DEBUG)
 
-
-
 def main():
     client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
-    context.check_hostname = False  # Skip hostname verification (useful for localhost testing)
-    context.load_verify_locations("cert.pem")  # Load the server certificate
+    context.check_hostname = False
+    context.load_verify_locations("cert.pem")
     context.set_ciphers('ALL')
     with context.wrap_socket(client, server_hostname='localhost') as ssock:
         ssock.connect(ADDR)
-        while True:  ### multiple communications
+        while True:
             data = ssock.recv(SIZE).decode(FORMAT)
             cmd, msg = data.split("@")
             if cmd == "OK":
@@ -45,17 +41,25 @@ def main():
                 if os.path.exists(fileName):
                     ssock.send(cmd.encode(FORMAT))
                     ssock.send(fileName.encode(FORMAT))
+
+                    start_time = time.time()
                     with open(fileName, 'rb') as fileToSend:
                         while (filedata := fileToSend.read(SIZE)):
                             ssock.send(filedata)
                         ssock.send(b'EOF')
-                    print(f"File '{fileName}' sent successfully.")
+                    end_time = time.time()
+                    elapsed_time = end_time - start_time
+                    file_size = os.path.getsize(fileName)
+                    upload_speed = file_size / elapsed_time / 1024  # KB/s
+                    print(f"File '{fileName}' sent successfully in {elapsed_time:.2f} seconds.")
+                    print(f"Upload speed: {upload_speed:.2f} KB/s")
+
             elif cmd == "DOWNLOAD":
                 fileName = input("Enter the filename to download: ")
                 ssock.send(cmd.encode(FORMAT))
                 ssock.send(fileName.encode(FORMAT))
 
-
+                start_time = time.time()
                 with open(f"downloaded_{fileName}", 'wb') as fileToWrite:
                     while True:
                         filedata = ssock.recv(SIZE)
@@ -63,13 +67,19 @@ def main():
                             print(f"Download complete for {fileName}")
                             break
                         fileToWrite.write(filedata)
-                        print(f"Received chunk of {len(filedata)} bytes.")
+
+                end_time = time.time()
+                elapsed_time = end_time - start_time
+                file_size = os.path.getsize(f"downloaded_{fileName}")
+                download_speed = file_size / elapsed_time / 1024  # KB/s
+                print(f"File '{fileName}' downloaded successfully in {elapsed_time:.2f} seconds.")
+                print(f"Download speed: {download_speed:.2f} KB/s")
+
             elif cmd == "DELETE":
                 fileName = input("Enter the filename to delete: ")
-                ssock.send(cmd.encode(FORMAT))  # Send DELETE command
-                ssock.send(fileName.encode(FORMAT))  # Send the filename to the server
+                ssock.send(cmd.encode(FORMAT))
+                ssock.send(fileName.encode(FORMAT))
 
-                # Receive confirmation from server
                 response = ssock.recv(SIZE).decode(FORMAT)
                 if response == "OK":
                     print(f"File '{fileName}' deleted successfully.")
@@ -81,8 +91,7 @@ def main():
                 break
 
         print("Disconnected from the server.")
-        ssock.close()  ## close the connection
-
+        ssock.close()
 
 if __name__ == "__main__":
     main()
