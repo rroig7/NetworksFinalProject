@@ -2,6 +2,7 @@ import json
 
 databaseFile = "server/users.json"
 
+
 def saveUser(user):
 
     users = loadUsers()
@@ -10,6 +11,7 @@ def saveUser(user):
 
     with open(databaseFile, "w") as file:
         json.dump(users, file, indent=4)
+
 
 def loadUsers():
     with open(databaseFile, "r") as file:

@@ -13,7 +13,7 @@ import ssl
 
 
 IP = "localhost"
-PORT = 4450
+PORT = 4450  # listening on this port
 ADDR = (IP, PORT)
 SIZE = 1024
 FORMAT = "utf-8"
@@ -37,18 +37,17 @@ def handle_client(conn, addr):
 
         send_data = "OK@"
 
-        if cmd == "LOGOUT":
+        if cmd == "LOGOUT":  # If LOGOUT is received from client, then send client DISCONNECTED@ message
+            print(f"{addr} requested to LOGOUT.")  # This is for the server
+            conn.send("DISCONNECTED@".encode(FORMAT))  # Exit the loop and disconnect the client.
             break
-
-        elif cmd == "TASK":
-            send_data += "LOGOUT from the server.\n"
-            send_data += "SIGNUP for the server.\n"
-
-            conn.send(send_data.encode(FORMAT))
-        elif cmd == "SIGNUP":
-            print("[ACCOUNT CREATION] Starting process...")
-            username = conn.recv(SIZE).decode(FORMAT)
-            password = conn.recv(SIZE).decode(FORMAT)
+        elif len(str.encode(cmd)) > 0:
+            if cmd == "TASK":  # If TASK is received from client, send the following message
+                sendToClient("LOGOUT from the server. \nSIGNUP for the server.")
+            elif cmd == "SIGNUP":
+                print("[ACCOUNT CREATION] Starting process...")
+                username = conn.recv(SIZE).decode(FORMAT)
+                password = conn.recv(SIZE).decode(FORMAT)
 
             user = {
                 "username": username,
@@ -164,3 +163,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
