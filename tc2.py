@@ -4,8 +4,8 @@ import ssl
 import logging
 import time
 
-IP = "localhost"
-PORT = 4450
+IP = "35.136.49.5"
+PORT = 7777
 ADDR = (IP, PORT)
 SIZE = 1024
 FORMAT = "utf-8"
@@ -19,7 +19,7 @@ def main():
     context.check_hostname = False
     context.load_verify_locations("cert.pem")
     context.set_ciphers('ALL')
-    with context.wrap_socket(client, server_hostname='localhost') as ssock:
+    with context.wrap_socket(client, server_hostname=IP) as ssock:
         ssock.connect(ADDR)
         while True:
             data = ssock.recv(SIZE).decode(FORMAT)

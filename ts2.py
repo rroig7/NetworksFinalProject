@@ -1,15 +1,16 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+import time
+import matplotlib.pyplot as plt
 import os
 import socket
 import threading
-import ssl
-import time
 import json
-import matplotlib.pyplot as plt
+from database import database
+import ssl
 
-IP = "localhost"
+IP = "10.221.87.26"
 PORT = 4450
 ADDR = (IP, PORT)
 SIZE = 1024
@@ -53,32 +54,112 @@ def plot_graph():
 
 
 def handle_client(conn, addr):
+    def sendToClient(msg):
+        conn.send(msg.encode(FORMAT))
+
+
     print(f"[NEW CONNECTION] {addr} connected.")
-    conn.send("OK@Welcome to the server".encode(FORMAT))
+    sendToClient("OK@Welcome to the server, enter TASK for the list of commands")
 
     while True:
         data = conn.recv(SIZE).decode(FORMAT)
         data = data.split("@")
         cmd = data[0]
-        send_data = "OK@"
-
-        if cmd == "LOGOUT":
+        if cmd == "LOGOUT":  # If LOGOUT is received from client
+            print(f"{addr} requested to LOGOUT.")  # This is for the server
             break
-        if cmd == "UPLOAD":
-            filename = conn.recv(SIZE).decode(FORMAT)
-            print(f"Receiving file from {addr} with filename {filename}")
+        elif cmd == "SIGNUP":
+            print("[ACCOUNT CREATION] Starting process...")
+            username = conn.recv(SIZE).decode(FORMAT)
+            password = conn.recv(SIZE).decode(FORMAT)
 
-            start_time = time.time()
-            bytes_received = 0
+            user = {
+                "username": username,
+                "password": password
+            }
 
-            if os.path.exists(f"received_{filename}"):
-                base_name, ext = os.path.splitext(filename)
+            if not database.checkForExistingUser(username):
+                database.saveUser(user)
+                print(f"[ACCOUNT CREATION] {username} created successfully.")
+                sendToClient("OK@Account creation successful.")
+            else:
+                print(f"[EXISTING USER] {username} account not created.")
+                sendToClient("OK@[ERROR] Username already exists.")
+        elif cmd == "LOGIN":
+            # Getting login credentials from the user.
+            username = conn.recv(SIZE).decode(FORMAT)
+            password = conn.recv(SIZE).decode(FORMAT)
+            print("[ACCOUNT LOGIN] Checking credentials...")
+
+            # If the user does not exist in the account directory,
+            # make a directory folder for that user, then cd them into it
+            user = database.checkForExistingUser(username)
+
+            if user is not None:
+                print(f"[ACCOUNT LOGIN] User {username} found successfully, checking password...")
+
+                if user["password"] == password:
+                    print(f"[ACCOUNT LOGIN] User {username} credentials valid, user authenticated.")
+
+                    # Creating user directory from username
+                    user_dir = os.path.join("user_files", username)
+                    if not os.path.exists(user_dir):
+                        os.makedirs(user_dir)
+
+                    # Server State set to Authenticated
+
+                    current_dir = user_dir
+
+                    sendToClient(f"OK@Welcome to your directory {username}!\n" +
+                                 f"Please enter TASK for a list of user commands.\n" +
+                                 f"Current Directory: {current_dir}")
+
+                    while True:
+                        sendToClient(f"PRINT@Current Directory: {current_dir}")
+
+                        user_cmd = conn.recv(SIZE).decode(FORMAT)
+                        if user_cmd == "LOGOUT":
+                            break
+
+                        elif user_cmd == "ls":
+                            files = os.listdir(current_dir)
+                            if files:
+                                file_list = "\n".join(files)
+                                sendToClient(f"OK@{file_list}")
+                            else:
+                                sendToClient("OK@no files")
+
+
+                        # TODO: make this shit work
+                        elif user_cmd.startswith("cd"):
+
+                            path = user_cmd.split(" ", 1)[1].strip()
+
+                        else:
+                            sendToClient("OK@[ERROR] Invalid command.\n")
+                else:
+                    print(f"[ACCOUNT LOGIN] User {username} password was invalid.")
+                    sendToClient("OK@Invalid password, please try again.")
+                    continue
+            else:
+                print(f"[ACCOUNT LOGIN] User {username} does not exist.")
+                sendToClient("OK@User does not exist.")
+                continue
+        elif cmd == "UPLOAD":
+            filename = conn.recv(SIZE).decode(FORMAT) # will receive file name from client
+            print(f"Receiving file from {addr} with filename {filename}") # Prints to server
+
+            start_time = time.time() # starts a timer
+            bytes_received = 0 # Will track how many bytes were received from client
+
+            if os.path.exists(f"received_{filename}"): # runs if file already exists
+                base_name, ext = os.path.splitext(filename) # splits the file between its extension and name
                 counter = 1
                 new_file_name = f"received_{base_name}_copy{ext}"
                 while os.path.exists(new_file_name):
                     new_file_name = f"received_{base_name}_copy{counter}{ext}"
-                    counter += 1
-                filename = new_file_name
+                    counter += 1 # for every copy found, add 1 to the counter
+                filename = new_file_name # names the copy as "received_filename_copy#.ext"
 
             with open(f"received_{filename}", "wb") as f:
                 while True:
@@ -136,7 +217,6 @@ def handle_client(conn, addr):
             except FileNotFoundError:
                 conn.send("ERROR@File not found".encode(FORMAT))
                 print(f"File {filename} not found.")
-
         elif cmd == "DELETE":
             filename = conn.recv(SIZE).decode(FORMAT)
             print(f"Deleting file {filename} requested by {addr}")
@@ -152,9 +232,17 @@ def handle_client(conn, addr):
             except Exception as e:
                 conn.send(f"ERROR@{str(e)}".encode(FORMAT))
                 print(f"Error deleting file {filename}: {str(e)}")
-        elif cmd == "TASK":
-            send_data += "LOGOUT from the server.\n"
-            conn.send(send_data.encode(FORMAT))
+        elif cmd == "TASK":  # If TASK is received from client, send the following message
+            sendToClient("OK@LOGOUT from the server. \nSIGNUP for the server.\nLOGIN to the server\n"
+                         "UPLOAD to the server\nDOWNLOAD from the server\nDELETE from the server\n"
+                         "TASK to list these commands")
+        else:
+            # Catches any cmd that is not explicitly stated
+            sendToClient("OK@[ERROR] Invalid command.\n")
+
+    print(f"{addr} disconnected")
+    conn.close()
+
 
     print(f"{addr} disconnected")
     conn.close()
@@ -163,22 +251,23 @@ def handle_client(conn, addr):
 def main():
     print("Starting the server")
 
-    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server.bind(ADDR)
-    server.listen()
+    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # AF_INET is IPV4 and  SOCK_STREAM is TCP connection
+    server.bind(ADDR) # This will bind the server to this IP address
+    server.listen() # Server starts listening for connections
 
     print(f"Server is listening on {IP}: {PORT}")
 
-    context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-    context.load_cert_chain(certfile="cert.pem", keyfile="private.key")
-    context.set_ciphers('ALL')
-    context.set_servername_callback(lambda s, c, h: print(f'SSL Handshake with client: {h}'))
+    context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER) # ASSUMPTION: A SSL server protocal is called as a framework
+    context.load_cert_chain(certfile="cert.pem", keyfile="private.key") # Client receives cert.pem, and server uses private.key
 
-    with context.wrap_socket(server, server_side=True) as ssock:
+    context.set_ciphers('ALL') # No idea
+    context.set_servername_callback(lambda s, c, h: print(f'SSL Handshake with client: {h}')) # No idea
+
+    with context.wrap_socket(server, server_side=True) as ssock: # ASSUMPTION: This will wrap any client-server connection with SSL
         while True:
-            conn, addr = ssock.accept()
-            thread = threading.Thread(target=handle_client, args=(conn, addr))
-            thread.start()
+            conn, addr = ssock.accept() # Accepts a socket connection from client
+            thread = threading.Thread(target=handle_client, args=(conn, addr)) # Add a thread to the client
+            thread.start() # starts the connection with this thread
 
 
 if __name__ == "__main__":

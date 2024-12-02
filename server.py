@@ -22,32 +22,27 @@ SERVER_PATH = "server"
 
 ### to handle the clients
 def handle_client(conn, addr):
-    print(f"[NEW CONNECTION] {addr} connected.")
-    conn.send(
-        "OK@Welcome to the server, if you don't have an account, please create one by entering SIGNUP".encode(FORMAT))
-
     def sendToClient(msg):
         conn.send(msg.encode(FORMAT))
 
-    while True:
 
+    print(f"[NEW CONNECTION] {addr} connected.")
+    sendToClient("OK@Welcome to the server, if you don't have an account, please create one by entering SIGNUP")
+
+    while True:
         data = conn.recv(SIZE).decode(FORMAT)
         data = data.split("@")
         cmd = data[0]
 
-        send_data = "OK@"
-
         if cmd == "LOGOUT":  # If LOGOUT is received from client, then send client DISCONNECTED@ message
-            print(f"{addr} requested to LOGOUT.")  # This is for the server
-            conn.send("DISCONNECTED@".encode(FORMAT))  # Exit the loop and disconnect the client.
-            break
-        elif len(str.encode(cmd)) > 0:
-            if cmd == "TASK":  # If TASK is received from client, send the following message
-                sendToClient("LOGOUT from the server. \nSIGNUP for the server.")
-            elif cmd == "SIGNUP":
-                print("[ACCOUNT CREATION] Starting process...")
-                username = conn.recv(SIZE).decode(FORMAT)
-                password = conn.recv(SIZE).decode(FORMAT)
+                print(f"{addr} requested to LOGOUT.")  # This is for the server
+                break
+        elif cmd == "TASK":  # If TASK is received from client, send the following message
+            sendToClient("OK@LOGOUT from the server. \nSIGNUP for the server.")
+        elif cmd == "SIGNUP":
+            print("[ACCOUNT CREATION] Starting process...")
+            username = conn.recv(SIZE).decode(FORMAT)
+            password = conn.recv(SIZE).decode(FORMAT)
 
             user = {
                 "username": username,
@@ -57,13 +52,10 @@ def handle_client(conn, addr):
             if not database.checkForExistingUser(username):
                 database.saveUser(user)
                 print(f"[ACCOUNT CREATION] {username} created successfully.")
-                send_data += "Account creation successful."
-                conn.send(send_data.encode(FORMAT))
+                sendToClient("OK@Account creation successful.")
             else:
                 print(f"[EXISTING USER] {username} account not created.")
-                send_data += "[ERROR] This account already exists."
-                conn.send(send_data.encode(FORMAT))
-
+                sendToClient("OK@[ERROR] Username already exists.")
         elif cmd == "LOGIN":
             # Getting login credentials from the user.
             username = conn.recv(SIZE).decode(FORMAT)
@@ -94,7 +86,6 @@ def handle_client(conn, addr):
                                  f"Current Directory: {current_dir}")
 
                     while True:
-
                         sendToClient(f"PRINT@Current Directory: {current_dir}")
 
                         user_cmd = conn.recv(SIZE).decode(FORMAT)
@@ -117,11 +108,6 @@ def handle_client(conn, addr):
 
                         else:
                             sendToClient("OK@[ERROR] Invalid command.\n")
-
-
-
-
-
                 else:
                     print(f"[ACCOUNT LOGIN] User {username} password was invalid.")
                     sendToClient("OK@Invalid password, please try again.")
@@ -130,14 +116,9 @@ def handle_client(conn, addr):
                 print(f"[ACCOUNT LOGIN] User {username} does not exist.")
                 sendToClient("OK@User does not exist.")
                 continue
-
-
-
-
-
         else:
-            send_data += "[ERROR] Invalid command.\n"
-            conn.send(send_data.encode(FORMAT))
+            # Catches any cmd that is not explicitly stated
+            sendToClient("OK@[ERROR] Invalid command.\n")
 
     print(f"{addr} disconnected")
     conn.close()

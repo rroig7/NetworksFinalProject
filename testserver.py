@@ -70,15 +70,19 @@ def handle_client (conn,addr):
 
 def main():
     print("Starting the server")
+
     server = socket.socket(socket.AF_INET,socket.SOCK_STREAM) ## used IPV4 and TCP connection
     server.bind(ADDR) # bind the address
     server.listen() ## start listening
+
     print(f"server is listening on {IP}: {PORT}")
+
     context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
     context.load_cert_chain(certfile="cert.pem", keyfile="private.key")
 
     context.set_ciphers('ALL')
     context.set_servername_callback(lambda s, c, h: print(f'SSL Handshake with client: {h}'))
+
     with context.wrap_socket(server, server_side=True) as ssock:
         while True:
             conn, addr = ssock.accept() ### accept a connection from a client

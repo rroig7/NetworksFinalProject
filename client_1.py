@@ -24,7 +24,7 @@ def main():
         data = client.recv(SIZE).decode(FORMAT)  # data received will be like: OK@message
         cmd, msg = data.split("@")  # data will be split as: cmd:OK and msg:message
 
-        if cmd == "OK": # If the cmd after the split is OK, print the message it received from the server, and to continue the loop
+        if cmd == "OK": # If the cmd after the split is OK, print the message it received from the server, loop stays the same
             print(f"{msg}")
         elif cmd == "DISCONNECTED": # If the server tells the client to disconnect, then disconnect
             print(f"{msg}")
