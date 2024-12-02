@@ -92,7 +92,11 @@ def handle_client(conn, addr):
                                  f"Please enter TASK for a list of user commands.\n" +
                                  f"Current Directory: {current_dir}")
 
+                    dir_depth = 0
+
                     while True:
+                        # To track how deep the user is in the file tree
+
 
                         sendToClient(f"PRINT@Current Directory: {current_dir}")
 
@@ -112,7 +116,35 @@ def handle_client(conn, addr):
                         # TODO: make this shit work
                         elif user_cmd.startswith("cd"):
 
-                            path = user_cmd.split(" ", 1)[1].strip()
+
+
+                            requested_sub_dir = user_cmd.split(" ", 1)[-1].strip()
+
+                            requested_path = current_dir + "\\" + requested_sub_dir
+
+                            if user_cmd == "cd ..":
+                                if dir_depth > 0:
+                                    # Split the current_dir by the backslash, remove the last part, and rejoin
+                                    temp = current_dir.rstrip("\\").rsplit("\\", 1)
+                                    current_dir = temp[0] if len(temp) > 1 else "\\"
+                                    dir_depth -= 1
+                                    sendToClient("OK@Directory changed.")
+                                else:
+                                    sendToClient("OK@You are at the root directory already.")
+
+
+                            else:
+
+                                if os.path.exists(requested_path):
+                                    dir_depth += 1
+                                    current_dir = requested_path
+                                    sendToClient("OK@Directory changed successfully.")
+
+                                else:
+                                    sendToClient("OK@File path does not exist.")
+                                    continue
+
+
 
                         else:
                             sendToClient("OK@[ERROR] Invalid command.\n")

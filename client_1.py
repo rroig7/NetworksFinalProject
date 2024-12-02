@@ -32,8 +32,8 @@ def main():
         data = input("> ")
         if data == "":
             client.send("Not".encode(FORMAT))
-        data = data.split(" ")
-        cmd = data[0]
+        # data = data.split(" ")
+        cmd = str(data)
 
         if cmd == "TASK":
             client.send(cmd.encode(FORMAT))
