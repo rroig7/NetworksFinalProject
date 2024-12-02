@@ -24,40 +24,32 @@ def main():
         data = client.recv(SIZE).decode(FORMAT)  # data received will be like: OK@message
         cmd, msg = data.split("@")  # data will be split as: cmd:OK and msg:message
 
-        if cmd == "OK":
+        if cmd == "OK": # If the cmd after the split is OK, print the message it received from the server, and to continue the loop
             print(f"{msg}")
-        elif cmd == "DISCONNECTED":
+        elif cmd == "DISCONNECTED": # If the server tells the client to disconnect, then disconnect
             print(f"{msg}")
             break
-        elif cmd == "PRINT":
+        elif cmd == "PRINT": # only prints out the message, and does a new loop
             print(f"{msg}")
             continue
 
         data = input("> ").strip()  # Strip any leading/trailing spaces
 
-        if data == "":
+        if data == "": # if the message from the server is empty, send a message stating it is empty, loop again
             client.send("EMPTY".encode(FORMAT))
             continue
 
-
-
-        data = input("> ")
-        if data == "":
-            client.send("Not".encode(FORMAT))
         data = data.split(" ")
         cmd = data[0]
 
         if cmd == "TASK":  # This will command server to return possible task the client can do
             client.send(cmd.encode(FORMAT))
 
-        elif cmd == "LOGOUT":  # This will send to server a command to log out of the server
-            client.send(cmd.encode(FORMAT))
-
-        elif cmd == "LOGOUT":
+        elif cmd == "LOGOUT": # Tells the server it is disconnecting, and breaks the loop
             client.send(cmd.encode(FORMAT))
             break
 
-        elif cmd == "SIGNUP":
+        elif cmd == "SIGNUP": # Tells the server, that user is signing up, and sends the username and password used
             client.send(cmd.encode(FORMAT))
 
             username = input(f"Please enter your username: ")
@@ -69,7 +61,7 @@ def main():
 
             print("Waiting for response...")
 
-        elif cmd == "LOGIN":
+        elif cmd == "LOGIN": # Tells the server, that user is logging in, with their username and password
             client.send(cmd.encode(FORMAT))
 
             username = input(f"Please enter your username: ")
@@ -81,14 +73,14 @@ def main():
 
             print("Waiting for response...")
 
-        else:
+        else: # sends a message to server, used to catch any non options
             client.send(cmd.encode(FORMAT))
             continue
 
 
 
 
-
+    # Prints when the loop has ended
     print("Disconnected from the server.")
     client.close()  # close the connection
 
