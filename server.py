@@ -18,8 +18,14 @@ SERVER_PATH = "server"
 
 
 def sendToClient(conn, msg):
-    send_data = "OK@" + msg
-    conn.send(send_data.encode(FORMAT))
+    cmd, message = msg.split("@")
+    if cmd == "PRINT":
+        print(message)
+    elif cmd == "FLORIDA":
+        print(message)
+    else:
+        send_data = "OK@" + message
+        conn.send(send_data.encode(FORMAT))
 
 
 # to handle the clients
