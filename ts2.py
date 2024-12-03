@@ -10,8 +10,9 @@ import json
 from database import database
 import ssl
 
-IP = "10.221.87.26"
-PORT = 4450
+# IP = "10.221.87.26"
+IP = "localhost"
+PORT = 7777
 ADDR = (IP, PORT)
 SIZE = 1024
 FORMAT = "utf-8"
@@ -126,7 +127,7 @@ def handle_client(conn, addr):
                         if user_cmd == "LOGOUT":
                             break
 
-                        elif user_cmd == "ls":
+                        elif user_cmd == "LS":
                             files = os.listdir(current_dir)
                             if files:
                                 file_list = "\n".join(files)
@@ -135,7 +136,7 @@ def handle_client(conn, addr):
                                 sendToClient("OK@no files")
 
 
-                        elif user_cmd.startswith("cd"):
+                        elif user_cmd.startswith("CD"):
 
 
 
@@ -143,7 +144,7 @@ def handle_client(conn, addr):
 
                             requested_path = current_dir + "\\" + requested_sub_dir
 
-                            if user_cmd == "cd ..":
+                            if user_cmd == "CD ..":
                                 if dir_depth > 0:
                                     # Split the current_dir by the backslash, remove the last part, and rejoin
                                     temp = current_dir.rstrip("\\").rsplit("\\", 1)
@@ -189,6 +190,7 @@ def handle_client(conn, addr):
                                         break
                                     f.write(filedata)
                                     bytes_received += len(filedata)
+                                f.close()
 
                             end_time = time.time()
                             transfer_time = end_time - start_time
@@ -201,7 +203,7 @@ def handle_client(conn, addr):
                             })
 
                             sendToClient(
-                                f"File {filename} received successfully. Transfer time: {transfer_time}s. Rate: {data_rate} bytes/s.")
+                                f"OK@File {filename} received successfully. Transfer time: {transfer_time}s. Rate: {data_rate} bytes/s.")
                             print(f"File {filename} received successfully. Transfer time: {transfer_time}s.")
                             log_to_file()
 
@@ -237,11 +239,11 @@ def handle_client(conn, addr):
                                 print(
                                     f"File {filename} sent successfully. Transfer time: {transfer_time}s. Rate: {data_rate} bytes/s.")
                                 sendToClient(
-                                    f"File {filename} sent successfully. Transfer time: {transfer_time}s. Rate: {data_rate} bytes/s.")
+                                    f"OK@File {filename} sent successfully. Transfer time: {transfer_time}s. Rate: {data_rate} bytes/s.")
                                 log_to_file()
                                 plot_graph()
                             except FileNotFoundError:
-                                conn.send("ERROR@File not found".encode(FORMAT))
+                                conn.send("OK@@File not found".encode(FORMAT))
                                 print(f"File {filename} not found.")
 
                         elif cmd == "DELETE":
@@ -254,10 +256,10 @@ def handle_client(conn, addr):
                                     conn.send("OK".encode(FORMAT))
                                     print(f"File {filename} deleted successfully.")
                                 else:
-                                    conn.send("ERROR@File not found".encode(FORMAT))
+                                    conn.send("OK@@File not found".encode(FORMAT))
                                     print(f"File {filename} not found.")
                             except Exception as e:
-                                conn.send(f"ERROR@{str(e)}".encode(FORMAT))
+                                conn.send(f"OK@{str(e)}".encode(FORMAT))
                                 print(f"Error deleting file {filename}: {str(e)}")
 
                         else:

@@ -5,7 +5,8 @@ import ssl
 import logging
 import hashlib
 
-IP = "35.136.49.5"
+# IP = "35.136.49.5"
+IP = "localhost"
 PORT = 7777
 ADDR = (IP, PORT)
 SIZE = 1024
@@ -40,8 +41,7 @@ def main():
                 ssock.send("EMPTY".encode(FORMAT))
                 continue
             data = data.upper()
-            data = data.split(" ")
-            cmd = data[0]
+            cmd = str(data)
 
             if cmd == "TASK":
                 ssock.send(cmd.encode(FORMAT))
