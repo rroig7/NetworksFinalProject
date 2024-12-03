@@ -58,7 +58,6 @@ def handle_client(conn, addr):
     def sendToClient(msg):
         conn.send(msg.encode(FORMAT))
 
-
     print(f"[NEW CONNECTION] {addr} connected.")
     sendToClient("OK@Welcome to the server, enter TASK for the list of commands")
 
@@ -119,14 +118,21 @@ def handle_client(conn, addr):
 
                     while True:
                         # To track how deep the user is in the file tree
-
-
+                        user_cmd = conn.recv(SIZE).decode(FORMAT)
                         sendToClient(f"PRINT@Current Directory: {current_dir}")
 
-                        user_cmd = conn.recv(SIZE).decode(FORMAT)
+
                         if user_cmd == "LOGOUT":
                             break
 
+                        elif user_cmd == "TASK":
+                            sendToClient("OK@"
+                                         "UPLOAD to the server\n"
+                                         "DOWNLOAD from the server\n"
+                                         "DELETE from the server\n"
+                                         "MKDIR to create a new directory.\n"
+                                         "CD to change directories.\n"
+                                         "LS to list all files in current directory.")
                         elif user_cmd == "LS":
                             files = os.listdir(current_dir)
                             if files:
@@ -134,11 +140,7 @@ def handle_client(conn, addr):
                                 sendToClient(f"OK@{file_list}")
                             else:
                                 sendToClient("OK@no files")
-
-
                         elif user_cmd.startswith("CD"):
-
-
 
                             requested_sub_dir = user_cmd.split(" ", 1)[-1].strip()
 
@@ -156,7 +158,6 @@ def handle_client(conn, addr):
 
 
                             else:
-
                                 if os.path.exists(requested_path):
                                     dir_depth += 1
                                     current_dir = requested_path
@@ -165,7 +166,6 @@ def handle_client(conn, addr):
                                 else:
                                     sendToClient("OK@File path does not exist.")
                                     continue
-
                         elif user_cmd == "UPLOAD":
                             filename = conn.recv(SIZE).decode(FORMAT)  # will receive file name from client
                             print(f"Receiving file from {addr} with filename {filename}")  # Prints to server
@@ -245,8 +245,7 @@ def handle_client(conn, addr):
                             except FileNotFoundError:
                                 conn.send("OK@@File not found".encode(FORMAT))
                                 print(f"File {filename} not found.")
-
-                        elif cmd == "DELETE":
+                        elif user_cmd == "DELETE":
                             filename = conn.recv(SIZE).decode(FORMAT)
                             print(f"Deleting file {filename} requested by {addr}")
 
@@ -261,13 +260,20 @@ def handle_client(conn, addr):
                             except Exception as e:
                                 conn.send(f"OK@{str(e)}".encode(FORMAT))
                                 print(f"Error deleting file {filename}: {str(e)}")
+                        elif user_cmd.startswith("MKDIR"):
+                            requested_sub_dir = user_cmd.split(" ", 1)[-1].strip()
+
+                            requested_path = current_dir + "\\" + requested_sub_dir
+
+                            if not os.path.exists(requested_path):
+                                os.mkdir(requested_path)
+                                sendToClient(f"OK@\"{requested_sub_dir}\" path created.")
+
+                            else:
+                                sendToClient("OK@Path already exists.")
 
                         else:
                             sendToClient("OK@[ERROR] Invalid command.\n")
-
-
-
-
 
                 else:
                     print(f"[ACCOUNT LOGIN] User {username} password was invalid.")
@@ -279,8 +285,9 @@ def handle_client(conn, addr):
                 continue
 
         elif cmd == "TASK":  # If TASK is received from client, send the following message
-            sendToClient("OK@LOGOUT from the server. \nSIGNUP for the server.\nLOGIN to the server\n"
-                         "UPLOAD to the server\nDOWNLOAD from the server\nDELETE from the server\n"
+            sendToClient("OK@LOGOUT from the server. \n"
+                         "SIGNUP for the server.\n"
+                         "LOGIN to the server\n"
                          "TASK to list these commands")
         else:
             # Catches any cmd that is not explicitly stated
@@ -293,23 +300,25 @@ def handle_client(conn, addr):
 def main():
     print("Starting the server")
 
-    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM) # AF_INET is IPV4 and  SOCK_STREAM is TCP connection
-    server.bind(ADDR) # This will bind the server to this IP address
-    server.listen() # Server starts listening for connections
+    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)  # AF_INET is IPV4 and  SOCK_STREAM is TCP connection
+    server.bind(ADDR)  # This will bind the server to this IP address
+    server.listen()  # Server starts listening for connections
 
     print(f"Server is listening on {IP}: {PORT}")
 
-    context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER) # ASSUMPTION: A SSL server protocal is called as a framework
-    context.load_cert_chain(certfile="cert.pem", keyfile="private.key") # Client receives cert.pem, and server uses private.key
+    context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)  # ASSUMPTION: A SSL server protocal is called as a framework
+    context.load_cert_chain(certfile="cert.pem",
+                            keyfile="private.key")  # Client receives cert.pem, and server uses private.key
 
-    context.set_ciphers('ALL') # No idea
-    context.set_servername_callback(lambda s, c, h: print(f'SSL Handshake with client: {h}')) # No idea
+    context.set_ciphers('ALL')  # No idea
+    context.set_servername_callback(lambda s, c, h: print(f'SSL Handshake with client: {h}'))  # No idea
 
-    with context.wrap_socket(server, server_side=True) as ssock: # ASSUMPTION: This will wrap any client-server connection with SSL
+    with context.wrap_socket(server,
+                             server_side=True) as ssock:  # ASSUMPTION: This will wrap any client-server connection with SSL
         while True:
-            conn, addr = ssock.accept() # Accepts a socket connection from client
-            thread = threading.Thread(target=handle_client, args=(conn, addr)) # Add a thread to the client
-            thread.start() # starts the connection with this thread
+            conn, addr = ssock.accept()  # Accepts a socket connection from client
+            thread = threading.Thread(target=handle_client, args=(conn, addr))  # Add a thread to the client
+            thread.start()  # starts the connection with this thread
 
 
 if __name__ == "__main__":
