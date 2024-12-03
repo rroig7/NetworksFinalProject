@@ -9,11 +9,9 @@ import socket
 import threading
 import json
 from database import database
-import ssl
-
 
 IP = "localhost"
-PORT = 4450  # listening on this port
+PORT = 4450
 ADDR = (IP, PORT)
 SIZE = 1024
 FORMAT = "utf-8"
@@ -22,23 +20,29 @@ SERVER_PATH = "server"
 
 ### to handle the clients
 def handle_client(conn, addr):
+    print(f"[NEW CONNECTION] {addr} connected.")
+    conn.send(
+        "OK@Welcome to the server, if you don't have an account, please create one by entering SIGNUP".encode(FORMAT))
+
     def sendToClient(msg):
         conn.send(msg.encode(FORMAT))
 
-
-    print(f"[NEW CONNECTION] {addr} connected.")
-    sendToClient("OK@Welcome to the server, if you don't have an account, please create one by entering SIGNUP")
-
     while True:
+
         data = conn.recv(SIZE).decode(FORMAT)
         data = data.split("@")
         cmd = data[0]
 
-        if cmd == "LOGOUT":  # If LOGOUT is received from client, then send client DISCONNECTED@ message
-                print(f"{addr} requested to LOGOUT.")  # This is for the server
-                break
-        elif cmd == "TASK":  # If TASK is received from client, send the following message
-            sendToClient("OK@LOGOUT from the server. \nSIGNUP for the server.")
+        send_data = "OK@"
+
+        if cmd == "LOGOUT":
+            break
+
+        elif cmd == "TASK":
+            send_data += "LOGOUT from the server.\n"
+            send_data += "SIGNUP for the server.\n"
+
+            conn.send(send_data.encode(FORMAT))
         elif cmd == "SIGNUP":
             print("[ACCOUNT CREATION] Starting process...")
             username = conn.recv(SIZE).decode(FORMAT)
@@ -52,10 +56,13 @@ def handle_client(conn, addr):
             if not database.checkForExistingUser(username):
                 database.saveUser(user)
                 print(f"[ACCOUNT CREATION] {username} created successfully.")
-                sendToClient("OK@Account creation successful.")
+                send_data += "Account creation successful."
+                conn.send(send_data.encode(FORMAT))
             else:
                 print(f"[EXISTING USER] {username} account not created.")
-                sendToClient("OK@[ERROR] Username already exists.")
+                send_data += "[ERROR] This account already exists."
+                conn.send(send_data.encode(FORMAT))
+
         elif cmd == "LOGIN":
             # Getting login credentials from the user.
             username = conn.recv(SIZE).decode(FORMAT)
@@ -85,7 +92,12 @@ def handle_client(conn, addr):
                                  f"Please enter TASK for a list of user commands.\n" +
                                  f"Current Directory: {current_dir}")
 
+                    dir_depth = 0
+
                     while True:
+                        # To track how deep the user is in the file tree
+
+
                         sendToClient(f"PRINT@Current Directory: {current_dir}")
 
                         user_cmd = conn.recv(SIZE).decode(FORMAT)
@@ -104,10 +116,43 @@ def handle_client(conn, addr):
                         # TODO: make this shit work
                         elif user_cmd.startswith("cd"):
 
-                            path = user_cmd.split(" ", 1)[1].strip()
+
+
+                            requested_sub_dir = user_cmd.split(" ", 1)[-1].strip()
+
+                            requested_path = current_dir + "\\" + requested_sub_dir
+
+                            if user_cmd == "cd ..":
+                                if dir_depth > 0:
+                                    # Split the current_dir by the backslash, remove the last part, and rejoin
+                                    temp = current_dir.rstrip("\\").rsplit("\\", 1)
+                                    current_dir = temp[0] if len(temp) > 1 else "\\"
+                                    dir_depth -= 1
+                                    sendToClient("OK@Directory changed.")
+                                else:
+                                    sendToClient("OK@You are at the root directory already.")
+
+
+                            else:
+
+                                if os.path.exists(requested_path):
+                                    dir_depth += 1
+                                    current_dir = requested_path
+                                    sendToClient("OK@Directory changed successfully.")
+
+                                else:
+                                    sendToClient("OK@File path does not exist.")
+                                    continue
+
+
 
                         else:
                             sendToClient("OK@[ERROR] Invalid command.\n")
+
+
+
+
+
                 else:
                     print(f"[ACCOUNT LOGIN] User {username} password was invalid.")
                     sendToClient("OK@Invalid password, please try again.")
@@ -116,9 +161,14 @@ def handle_client(conn, addr):
                 print(f"[ACCOUNT LOGIN] User {username} does not exist.")
                 sendToClient("OK@User does not exist.")
                 continue
+
+
+
+
+
         else:
-            # Catches any cmd that is not explicitly stated
-            sendToClient("OK@[ERROR] Invalid command.\n")
+            send_data += "[ERROR] Invalid command.\n"
+            conn.send(send_data.encode(FORMAT))
 
     print(f"{addr} disconnected")
     conn.close()
@@ -130,18 +180,11 @@ def main():
     server.bind(ADDR)  # bind the address
     server.listen()  ## start listening
     print(f"server is listening on {IP}: {PORT}")
-    context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-    context.load_cert_chain(certfile="cert.pem", keyfile="private.key")
-
-    context.set_ciphers('ALL')
-    context.set_servername_callback(lambda s, c, h: print(f'SSL Handshake with client: {h}'))
-    with context.wrap_socket(server, server_side=True) as ssock:
-        while True:
-            conn, addr = ssock.accept() ### accept a connection from a client
-            thread = threading.Thread(target = handle_client, args = (conn, addr)) ## assigning a thread for each client
-            thread.start()
+    while True:
+        conn, addr = server.accept()  ### accept a connection from a client
+        thread = threading.Thread(target=handle_client, args=(conn, addr))  ## assigning a thread for each client
+        thread.start()
 
 
 if __name__ == "__main__":
     main()
-
