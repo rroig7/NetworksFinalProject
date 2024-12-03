@@ -93,9 +93,9 @@ def main():
                 end_time = time.time()
                 elapsed_time = end_time - start_time
                 file_size = os.path.getsize(f"downloaded_{fileName}")
-                download_speed = file_size / elapsed_time+0.0001 / 1024  # KB/s
+                download_speed = file_size / elapsed_time+0.0001 / (1024 * 1024)  # MB/s
                 print(f"File '{fileName}' downloaded successfully in {elapsed_time:.2f} seconds.")
-                print(f"Download speed: {download_speed:.2f} KB/s")
+                print(f"Download speed: {download_speed:.2f} MB/s")
 
             elif cmd == "DELETEFILE":
                 fileName = input("Enter the filename/subdirectory to delete: ")

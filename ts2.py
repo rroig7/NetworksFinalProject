@@ -32,26 +32,18 @@ def log_to_file():
 
 def plot_graph():
     uploads = [entry["rate"] for entry in network_stats["uploads"]]
-    downloads = [entry["rate"] for entry in network_stats["downloads"]]
     upload_times = [entry["time"] for entry in network_stats["uploads"]]
-    download_times = [entry["time"] for entry in network_stats["downloads"]]
 
-    fig, ax = plt.subplots(2, 1, figsize=(10, 8))
+    fig, ax = plt.subplots(figsize=(10, 6))
 
-    ax[0].plot(upload_times, uploads, label='Upload Rate (bytes/s)', color='b')
-    ax[0].set_title("Upload Rate Over Time")
-    ax[0].set_xlabel("Time (s)")
-    ax[0].set_ylabel("Rate (bytes/s)")
-    ax[0].legend()
-
-    ax[1].plot(download_times, downloads, label='Download Rate (bytes/s)', color='r')
-    ax[1].set_title("Download Rate Over Time")
-    ax[1].set_xlabel("Time (s)")
-    ax[1].set_ylabel("Rate (bytes/s)")
-    ax[1].legend()
+    ax.plot(upload_times, uploads, label='Upload Rate (bytes/s)', color='b')
+    ax.set_title("Upload Rate Over Time")
+    ax.set_xlabel("Time (s)")
+    ax.set_ylabel("Rate (bytes/s)")
+    ax.legend()
 
     plt.tight_layout()
-    plt.pause()
+    plt.pause(0.1)  # Pause to update the plot
 
 
 def handle_client(conn, addr):
@@ -121,10 +113,6 @@ def handle_client(conn, addr):
                         print(f"DEBUG: Current directory is {current_dir}")
 
                         user_cmd = conn.recv(SIZE).decode(FORMAT)
-
-
-
-
                         if user_cmd == "LOGOUT":
                             break
 
@@ -170,47 +158,68 @@ def handle_client(conn, addr):
                                 else:
                                     sendToClient("PRINT@File path does not exist.")
                         elif user_cmd == "UPLOAD":
-                            filename = conn.recv(SIZE).decode(FORMAT)  # will receive file name from client
-                            print(f"Receiving file from {addr} with filename {filename}")  # Prints to server
+                            filename = conn.recv(SIZE).decode(FORMAT)
+                            print(f"Receiving file from {addr} with filename {filename}")
 
-                            start_time = time.time()  # starts a timer
-                            bytes_received = 0  # Will track how many bytes were received from client
+                            start_time = time.time()
+                            bytes_received = 0  # Total bytes received
+                            last_bytes_received = 0  # For calculating the data rate in intervals
+                            last_time = time.time()  # Time of the last update
 
-                            if os.path.exists(f"{current_dir}/received_{filename}"):  # runs if file already exists
-                                base_name, ext = os.path.splitext(
-                                    filename)  # splits the file between its extension and name
+                            if os.path.exists(f"{current_dir}/received_{filename}"):
+                                base_name, ext = os.path.splitext(filename)
                                 counter = 1
                                 new_file_name = f"received_{base_name}_copy{ext}"
                                 while os.path.exists(new_file_name):
                                     new_file_name = f"received_{base_name}_copy{counter}{ext}"
-                                    counter += 1  # for every copy found, add 1 to the counter
-                                filename = new_file_name  # names the copy as "received_filename_copy#.ext"
+                                    counter += 1
+                                filename = new_file_name
 
                             with open(f"{current_dir}/received_{filename}", "wb") as f:
                                 while True:
                                     filedata = conn.recv(SIZE)
+
+                                    # If EOF signal received, break the loop
                                     if filedata == b'EOF':
                                         break
+
                                     f.write(filedata)
                                     bytes_received += len(filedata)
-                                f.close()
 
-                            end_time = time.time()
-                            transfer_time = end_time - start_time
-                            data_rate = bytes_received / transfer_time
+                                    # Periodically calculate the rate every second (or other interval)
+                                    current_time = time.time()
+                                    if current_time - last_time >= 1:  # Update every 1 second
+                                        bytes_per_second = bytes_received - last_bytes_received
+                                        print(f"Data rate: {bytes_per_second} bytes/s")
 
-                            network_stats["uploads"].append({
-                                "filename": filename,
-                                "time": transfer_time,
-                                "rate": data_rate
-                            })
+                                        # Save the rate and time for plotting
+                                        network_stats["uploads"].append({
+                                            "filename": filename,
+                                            "time": current_time - start_time,
+                                            "rate": bytes_per_second
+                                        })
 
-                            sendToClient(
-                                f"PRINT@File {filename} received successfully. Transfer time: {transfer_time}s. Rate: {data_rate} bytes/s.")
-                            print(f"File {filename} received successfully. Transfer time: {transfer_time}s.")
-                            log_to_file()
+                                        # Update the last data and time
+                                        last_bytes_received = bytes_received
+                                        last_time = current_time
 
-                            plot_graph()
+                                end_time = time.time()
+                                transfer_time = end_time - start_time
+                                data_rate = bytes_received / transfer_time
+
+                                network_stats["uploads"].append({
+                                    "filename": filename,
+                                    "time": transfer_time,
+                                    "rate": data_rate
+                                })
+
+                                sendToClient(
+                                    f"OK@File {filename} received successfully. Transfer time: {transfer_time}s. Rate: {data_rate} bytes/s."
+                                )
+                                print(f"File {filename} received successfully. Transfer time: {transfer_time}s.")
+                                log_to_file()
+
+                                plot_graph()
                         elif user_cmd == "DOWNLOAD":
                             filename = conn.recv(SIZE).decode(FORMAT)
                             print(f"Preparing to send file {filename} to {addr}")
