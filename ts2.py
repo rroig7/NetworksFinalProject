@@ -249,7 +249,6 @@ def handle_client(conn, addr):
                                 sendToClient(
                                     f"OK@File {filename} sent successfully. Transfer time: {transfer_time}s. Rate: {data_rate} bytes/s.")
                                 log_to_file()
-                                plot_graph()
                             except FileNotFoundError:
                                 conn.send("OK@@File not found".encode(FORMAT))
                                 print(f"File {filename} not found.")
