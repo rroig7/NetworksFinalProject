@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-
+import shutil
 import time
 import matplotlib.pyplot as plt
 import os
@@ -112,24 +112,28 @@ def handle_client(conn, addr):
 
                     sendToClient(f"OK@Welcome to your directory {username}!\n" +
                                  f"Please enter TASK for a list of user commands.\n" +
-                                 f"Current Directory: {current_dir}")
+                                 f"Current Directory: {current_dir[10:]}")
 
                     dir_depth = 0
 
                     while True:
                         # To track how deep the user is in the file tree
+                        print(f"DEBUG: Current directory is {current_dir}")
+
                         user_cmd = conn.recv(SIZE).decode(FORMAT)
-                        sendToClient(f"PRINT@Current Directory: {current_dir}")
+
+
 
 
                         if user_cmd == "LOGOUT":
                             break
 
                         elif user_cmd == "TASK":
-                            sendToClient("OK@"
+                            sendToClient("PRINT@"
                                          "UPLOAD to the server\n"
                                          "DOWNLOAD from the server\n"
-                                         "DELETE from the server\n"
+                                         "DELETEFILE from the server\n"
+                                         "DELETEDIR to delete a subdirectory\n" 
                                          "MKDIR to create a new directory.\n"
                                          "CD to change directories.\n"
                                          "LS to list all files in current directory.")
@@ -137,9 +141,9 @@ def handle_client(conn, addr):
                             files = os.listdir(current_dir)
                             if files:
                                 file_list = "\n".join(files)
-                                sendToClient(f"OK@{file_list}")
+                                sendToClient(f"PRINT@{file_list}")
                             else:
-                                sendToClient("OK@no files")
+                                sendToClient("PRINT@no files")
                         elif user_cmd.startswith("CD"):
 
                             requested_sub_dir = user_cmd.split(" ", 1)[-1].strip()
@@ -152,20 +156,19 @@ def handle_client(conn, addr):
                                     temp = current_dir.rstrip("\\").rsplit("\\", 1)
                                     current_dir = temp[0] if len(temp) > 1 else "\\"
                                     dir_depth -= 1
-                                    sendToClient("OK@Directory changed.")
+                                    sendToClient("PRINT@Directory changed.")
                                 else:
-                                    sendToClient("OK@You are at the root directory already.")
+                                    sendToClient("PRINT@You are at the root directory already.")
 
 
                             else:
                                 if os.path.exists(requested_path):
                                     dir_depth += 1
                                     current_dir = requested_path
-                                    sendToClient("OK@Directory changed successfully.")
+                                    sendToClient("PRINT@Directory changed successfully.")
 
                                 else:
-                                    sendToClient("OK@File path does not exist.")
-                                    continue
+                                    sendToClient("PRINT@File path does not exist.")
                         elif user_cmd == "UPLOAD":
                             filename = conn.recv(SIZE).decode(FORMAT)  # will receive file name from client
                             print(f"Receiving file from {addr} with filename {filename}")  # Prints to server
@@ -203,7 +206,7 @@ def handle_client(conn, addr):
                             })
 
                             sendToClient(
-                                f"OK@File {filename} received successfully. Transfer time: {transfer_time}s. Rate: {data_rate} bytes/s.")
+                                f"PRINT@File {filename} received successfully. Transfer time: {transfer_time}s. Rate: {data_rate} bytes/s.")
                             print(f"File {filename} received successfully. Transfer time: {transfer_time}s.")
                             log_to_file()
 
@@ -239,26 +242,26 @@ def handle_client(conn, addr):
                                 print(
                                     f"File {filename} sent successfully. Transfer time: {transfer_time}s. Rate: {data_rate} bytes/s.")
                                 sendToClient(
-                                    f"OK@File {filename} sent successfully. Transfer time: {transfer_time}s. Rate: {data_rate} bytes/s.")
+                                    f"PRINT@File {filename} sent successfully. Transfer time: {transfer_time}s. Rate: {data_rate} bytes/s.")
                                 log_to_file()
                                 plot_graph()
                             except FileNotFoundError:
-                                conn.send("OK@@File not found".encode(FORMAT))
+                                conn.send("PRINT@@File not found".encode(FORMAT))
                                 print(f"File {filename} not found.")
-                        elif user_cmd == "DELETE":
+                        elif user_cmd == "DELETEFILE":
                             filename = conn.recv(SIZE).decode(FORMAT)
                             print(f"Deleting file {filename} requested by {addr}")
 
                             try:
                                 if os.path.exists(f"{current_dir}/{filename}"):
                                     os.remove(f"{current_dir}/{filename}")
-                                    conn.send("OK".encode(FORMAT))
+                                    sendToClient("PRINT@OK")
                                     print(f"File {filename} deleted successfully.")
                                 else:
-                                    conn.send("OK@@File not found".encode(FORMAT))
+                                    sendToClient("PRINT@@File not found")
                                     print(f"File {filename} not found.")
                             except Exception as e:
-                                conn.send(f"OK@{str(e)}".encode(FORMAT))
+                                sendToClient(f"PRINT@{str(e)}")
                                 print(f"Error deleting file {filename}: {str(e)}")
                         elif user_cmd.startswith("MKDIR"):
                             requested_sub_dir = user_cmd.split(" ", 1)[-1].strip()
@@ -267,13 +270,33 @@ def handle_client(conn, addr):
 
                             if not os.path.exists(requested_path):
                                 os.mkdir(requested_path)
-                                sendToClient(f"OK@\"{requested_sub_dir}\" path created.")
+                                sendToClient(f"PRINT@\"{requested_sub_dir}\" path created.")
 
                             else:
-                                sendToClient("OK@Path already exists.")
+                                sendToClient("PRINT@Path already exists.")
+                        elif user_cmd.startswith("DELETEDIR"):
+
+                            requested_sub_dir = user_cmd.split(" ", 1)[-1].strip()
+                            requested_path = os.path.join(current_dir, requested_sub_dir)
+
+                            if os.path.exists(requested_path) and os.path.isdir(requested_path):
+                                try:
+                                    shutil.rmtree(requested_path)
+                                    sendToClient(f"PRINT@Directory \"{requested_sub_dir}\" deleted successfully.")
+                                    print(f"Directory \"{requested_sub_dir}\" deleted successfully.")
+                                except Exception as e:
+                                    sendToClient(f"PRINT@Error deleting directory: {str(e)}")
+                                    print(f"Error deleting directory \"{requested_sub_dir}\": {str(e)}")
+                            else:
+                                sendToClient("PRINT@Directory not found or is not a subdirectory")
+
+
 
                         else:
-                            sendToClient("OK@[ERROR] Invalid command.\n")
+                            sendToClient("PRINT@[ERROR] Invalid command.\n")
+                        sendToClient(f"OK@Current Directory: {current_dir[10:]}")
+
+
 
                 else:
                     print(f"[ACCOUNT LOGIN] User {username} password was invalid.")

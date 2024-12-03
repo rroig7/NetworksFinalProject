@@ -40,7 +40,13 @@ def main():
             if data == "":  # if the message from the server is empty, send a message stating it is empty, loop again
                 ssock.send("EMPTY".encode(FORMAT))
                 continue
-            data = data.upper()
+
+            if data.startswith("cd") or data.startswith("mkdir"):
+                parts = data.split(" ", 1)
+                parts[0] = parts[0].upper()
+                data = " ".join(parts)
+            else:
+                data = data.upper()
             cmd = str(data)
 
             if cmd == "TASK":
@@ -91,8 +97,8 @@ def main():
                 print(f"File '{fileName}' downloaded successfully in {elapsed_time:.2f} seconds.")
                 print(f"Download speed: {download_speed:.2f} KB/s")
 
-            elif cmd == "DELETE":
-                fileName = input("Enter the filename to delete: ")
+            elif cmd == "DELETEFILE":
+                fileName = input("Enter the filename/subdirectory to delete: ")
                 ssock.send(cmd.encode(FORMAT))
                 ssock.send(fileName.encode(FORMAT))
 
