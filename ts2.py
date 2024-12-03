@@ -157,7 +157,7 @@ def handle_client(conn, addr):
 
                                 else:
                                     sendToClient("PRINT@File path does not exist.")
-                        elif user_cmd == "UPLOAD":
+                        elif user_cmd == "UPLOAD": # Upload
                             filename = conn.recv(SIZE).decode(FORMAT)
                             print(f"Receiving file from {addr} with filename {filename}")
 
