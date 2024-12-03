@@ -50,7 +50,7 @@ def plot_graph():
     ax[1].legend()
 
     plt.tight_layout()
-    plt.show()
+    plt.pause()
 
 
 def handle_client(conn, addr):
@@ -179,7 +179,8 @@ def handle_client(conn, addr):
                 "rate": data_rate
             })
 
-            print(f"File {filename} received successfully. Transfer time: {transfer_time}s. Rate: {data_rate} bytes/s.")
+            sendToClient("File {filename} received successfully. Transfer time: {transfer_time}s. Rate: {data_rate} bytes/s.")
+            print("File {filename} received successfully. Transfer time: {transfer_time}s.")
             log_to_file()
 
             plot_graph()
@@ -212,6 +213,7 @@ def handle_client(conn, addr):
                 })
 
                 print(f"File {filename} sent successfully. Transfer time: {transfer_time}s. Rate: {data_rate} bytes/s.")
+                sendToClient("File {filename} sent successfully. Transfer time: {transfer_time}s. Rate: {data_rate} bytes/s.")
                 log_to_file()
                 plot_graph()
             except FileNotFoundError:
@@ -239,10 +241,6 @@ def handle_client(conn, addr):
         else:
             # Catches any cmd that is not explicitly stated
             sendToClient("OK@[ERROR] Invalid command.\n")
-
-    print(f"{addr} disconnected")
-    conn.close()
-
 
     print(f"{addr} disconnected")
     conn.close()
