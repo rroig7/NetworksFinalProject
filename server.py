@@ -113,7 +113,6 @@ def handle_client(conn, addr):
                                 sendToClient("OK@no files")
 
 
-                        # TODO: make this shit work
                         elif user_cmd.startswith("cd"):
 
 
@@ -161,10 +160,6 @@ def handle_client(conn, addr):
                 print(f"[ACCOUNT LOGIN] User {username} does not exist.")
                 sendToClient("OK@User does not exist.")
                 continue
-
-
-
-
 
         else:
             send_data += "[ERROR] Invalid command.\n"

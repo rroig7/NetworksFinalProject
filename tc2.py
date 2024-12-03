@@ -30,6 +30,9 @@ def main():
             elif cmd == "DISCONNECTED":
                 print(f"{msg}")
                 break
+            elif cmd == "PRINT":
+                print(f"{msg}")
+                continue
 
             data = input("> ").strip()  # Strip any leading/trailing spaces
 

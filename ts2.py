@@ -114,7 +114,12 @@ def handle_client(conn, addr):
                                  f"Please enter TASK for a list of user commands.\n" +
                                  f"Current Directory: {current_dir}")
 
+                    dir_depth = 0
+
                     while True:
+                        # To track how deep the user is in the file tree
+
+
                         sendToClient(f"PRINT@Current Directory: {current_dir}")
 
                         user_cmd = conn.recv(SIZE).decode(FORMAT)
@@ -130,13 +135,138 @@ def handle_client(conn, addr):
                                 sendToClient("OK@no files")
 
 
-                        # TODO: make this shit work
                         elif user_cmd.startswith("cd"):
 
-                            path = user_cmd.split(" ", 1)[1].strip()
+
+
+                            requested_sub_dir = user_cmd.split(" ", 1)[-1].strip()
+
+                            requested_path = current_dir + "\\" + requested_sub_dir
+
+                            if user_cmd == "cd ..":
+                                if dir_depth > 0:
+                                    # Split the current_dir by the backslash, remove the last part, and rejoin
+                                    temp = current_dir.rstrip("\\").rsplit("\\", 1)
+                                    current_dir = temp[0] if len(temp) > 1 else "\\"
+                                    dir_depth -= 1
+                                    sendToClient("OK@Directory changed.")
+                                else:
+                                    sendToClient("OK@You are at the root directory already.")
+
+
+                            else:
+
+                                if os.path.exists(requested_path):
+                                    dir_depth += 1
+                                    current_dir = requested_path
+                                    sendToClient("OK@Directory changed successfully.")
+
+                                else:
+                                    sendToClient("OK@File path does not exist.")
+                                    continue
+
+                        elif user_cmd == "UPLOAD":
+                            filename = conn.recv(SIZE).decode(FORMAT)  # will receive file name from client
+                            print(f"Receiving file from {addr} with filename {filename}")  # Prints to server
+
+                            start_time = time.time()  # starts a timer
+                            bytes_received = 0  # Will track how many bytes were received from client
+
+                            if os.path.exists(f"{current_dir}/received_{filename}"):  # runs if file already exists
+                                base_name, ext = os.path.splitext(
+                                    filename)  # splits the file between its extension and name
+                                counter = 1
+                                new_file_name = f"received_{base_name}_copy{ext}"
+                                while os.path.exists(new_file_name):
+                                    new_file_name = f"received_{base_name}_copy{counter}{ext}"
+                                    counter += 1  # for every copy found, add 1 to the counter
+                                filename = new_file_name  # names the copy as "received_filename_copy#.ext"
+
+                            with open(f"{current_dir}/received_{filename}", "wb") as f:
+                                while True:
+                                    filedata = conn.recv(SIZE)
+                                    if filedata == b'EOF':
+                                        break
+                                    f.write(filedata)
+                                    bytes_received += len(filedata)
+
+                            end_time = time.time()
+                            transfer_time = end_time - start_time
+                            data_rate = bytes_received / transfer_time
+
+                            network_stats["uploads"].append({
+                                "filename": filename,
+                                "time": transfer_time,
+                                "rate": data_rate
+                            })
+
+                            sendToClient(
+                                f"File {filename} received successfully. Transfer time: {transfer_time}s. Rate: {data_rate} bytes/s.")
+                            print(f"File {filename} received successfully. Transfer time: {transfer_time}s.")
+                            log_to_file()
+
+                            plot_graph()
+                        elif user_cmd == "DOWNLOAD":
+                            filename = conn.recv(SIZE).decode(FORMAT)
+                            print(f"Preparing to send file {filename} to {addr}")
+
+                            try:
+                                start_time = time.time()
+                                bytes_sent = 0
+
+                                with open(f"{current_dir}/{filename}", "rb") as fileToSend:
+                                    while True:
+                                        filedata = fileToSend.read(SIZE)
+                                        if not filedata:
+                                            break
+                                        conn.send(filedata)
+                                        bytes_sent += len(filedata)
+
+                                    conn.send(b'EOF')
+
+                                end_time = time.time()
+                                transfer_time = end_time - start_time
+                                data_rate = bytes_sent / transfer_time
+
+                                network_stats["downloads"].append({
+                                    "filename": filename,
+                                    "time": transfer_time,
+                                    "rate": data_rate
+                                })
+
+                                print(
+                                    f"File {filename} sent successfully. Transfer time: {transfer_time}s. Rate: {data_rate} bytes/s.")
+                                sendToClient(
+                                    f"File {filename} sent successfully. Transfer time: {transfer_time}s. Rate: {data_rate} bytes/s.")
+                                log_to_file()
+                                plot_graph()
+                            except FileNotFoundError:
+                                conn.send("ERROR@File not found".encode(FORMAT))
+                                print(f"File {filename} not found.")
+
+                        elif cmd == "DELETE":
+                            filename = conn.recv(SIZE).decode(FORMAT)
+                            print(f"Deleting file {filename} requested by {addr}")
+
+                            try:
+                                if os.path.exists(f"{current_dir}/{filename}"):
+                                    os.remove(f"{current_dir}/{filename}")
+                                    conn.send("OK".encode(FORMAT))
+                                    print(f"File {filename} deleted successfully.")
+                                else:
+                                    conn.send("ERROR@File not found".encode(FORMAT))
+                                    print(f"File {filename} not found.")
+                            except Exception as e:
+                                conn.send(f"ERROR@{str(e)}".encode(FORMAT))
+                                print(f"Error deleting file {filename}: {str(e)}")
 
                         else:
                             sendToClient("OK@[ERROR] Invalid command.\n")
+
+
+
+
+
                 else:
                     print(f"[ACCOUNT LOGIN] User {username} password was invalid.")
                     sendToClient("OK@Invalid password, please try again.")
@@ -145,95 +275,7 @@ def handle_client(conn, addr):
                 print(f"[ACCOUNT LOGIN] User {username} does not exist.")
                 sendToClient("OK@User does not exist.")
                 continue
-        elif cmd == "UPLOAD":
-            filename = conn.recv(SIZE).decode(FORMAT) # will receive file name from client
-            print(f"Receiving file from {addr} with filename {filename}") # Prints to server
 
-            start_time = time.time() # starts a timer
-            bytes_received = 0 # Will track how many bytes were received from client
-
-            if os.path.exists(f"received_{filename}"): # runs if file already exists
-                base_name, ext = os.path.splitext(filename) # splits the file between its extension and name
-                counter = 1
-                new_file_name = f"received_{base_name}_copy{ext}"
-                while os.path.exists(new_file_name):
-                    new_file_name = f"received_{base_name}_copy{counter}{ext}"
-                    counter += 1 # for every copy found, add 1 to the counter
-                filename = new_file_name # names the copy as "received_filename_copy#.ext"
-
-            with open(f"received_{filename}", "wb") as f:
-                while True:
-                    filedata = conn.recv(SIZE)
-                    if filedata == b'EOF':
-                        break
-                    f.write(filedata)
-                    bytes_received += len(filedata)
-
-            end_time = time.time()
-            transfer_time = end_time - start_time
-            data_rate = bytes_received / transfer_time
-
-            network_stats["uploads"].append({
-                "filename": filename,
-                "time": transfer_time,
-                "rate": data_rate
-            })
-
-            sendToClient("File {filename} received successfully. Transfer time: {transfer_time}s. Rate: {data_rate} bytes/s.")
-            print("File {filename} received successfully. Transfer time: {transfer_time}s.")
-            log_to_file()
-
-            plot_graph()
-        elif cmd == "DOWNLOAD":
-            filename = conn.recv(SIZE).decode(FORMAT)
-            print(f"Preparing to send file {filename} to {addr}")
-
-            try:
-                start_time = time.time()
-                bytes_sent = 0
-
-                with open(filename, "rb") as fileToSend:
-                    while True:
-                        filedata = fileToSend.read(SIZE)
-                        if not filedata:
-                            break
-                        conn.send(filedata)
-                        bytes_sent += len(filedata)
-
-                    conn.send(b'EOF')
-
-                end_time = time.time()
-                transfer_time = end_time - start_time
-                data_rate = bytes_sent / transfer_time
-
-                network_stats["downloads"].append({
-                    "filename": filename,
-                    "time": transfer_time,
-                    "rate": data_rate
-                })
-
-                print(f"File {filename} sent successfully. Transfer time: {transfer_time}s. Rate: {data_rate} bytes/s.")
-                sendToClient("File {filename} sent successfully. Transfer time: {transfer_time}s. Rate: {data_rate} bytes/s.")
-                log_to_file()
-                plot_graph()
-            except FileNotFoundError:
-                conn.send("ERROR@File not found".encode(FORMAT))
-                print(f"File {filename} not found.")
-        elif cmd == "DELETE":
-            filename = conn.recv(SIZE).decode(FORMAT)
-            print(f"Deleting file {filename} requested by {addr}")
-
-            try:
-                if os.path.exists(filename):
-                    os.remove(filename)
-                    conn.send("OK".encode(FORMAT))
-                    print(f"File {filename} deleted successfully.")
-                else:
-                    conn.send("ERROR@File not found".encode(FORMAT))
-                    print(f"File {filename} not found.")
-            except Exception as e:
-                conn.send(f"ERROR@{str(e)}".encode(FORMAT))
-                print(f"Error deleting file {filename}: {str(e)}")
         elif cmd == "TASK":  # If TASK is received from client, send the following message
             sendToClient("OK@LOGOUT from the server. \nSIGNUP for the server.\nLOGIN to the server\n"
                          "UPLOAD to the server\nDOWNLOAD from the server\nDELETE from the server\n"
