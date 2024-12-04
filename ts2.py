@@ -3,6 +3,7 @@
 import shutil
 import time
 import matplotlib.pyplot as plt
+import matplotlib
 import os
 import socket
 import threading
@@ -18,12 +19,12 @@ SIZE = 1024
 FORMAT = "utf-8"
 SERVER_PATH = "server"
 LOG_FILE = "server_log.json"
+matplotlib.use('Agg')
 
 network_stats = {
     "uploads": [],
     "downloads": []
 }
-
 
 def log_to_file():
     with open(LOG_FILE, 'w') as log_file:
@@ -43,17 +44,25 @@ def plot_graph():
     ax.legend()
 
     plt.tight_layout()
-    plt.pause(0.1)  # Pause to update the plot
+
+    # Save the plot as an image
+    output_file = "upload_rate_graph.png"
+    plt.savefig(output_file)
+    print(f"Graph saved as {output_file}")
 
 
 def handle_client(conn, addr):
     def sendToClient(msg):
-        conn.send(msg.encode(FORMAT))
+        try:
+            if conn:  # Ensure the connection object exists
+                conn.send(msg.encode(FORMAT))
+        except (ConnectionResetError, ssl.SSLEOFError) as e:
+            print(f"[ERROR] Failed to send message: {e}")
 
     print(f"[NEW CONNECTION] {addr} connected.")
     sendToClient("OK@Welcome to the server, enter TASK for the list of commands")
-
-    while True:
+    logout_flag = False
+    while not logout_flag:
         data = conn.recv(SIZE).decode(FORMAT)
         data = data.split("@")
         cmd = data[0]
@@ -108,13 +117,15 @@ def handle_client(conn, addr):
 
                     dir_depth = 0
 
-                    while True:
+                    while not logout_flag:
                         # To track how deep the user is in the file tree
                         print(f"DEBUG: Current directory is {current_dir}")
 
                         user_cmd = conn.recv(SIZE).decode(FORMAT)
                         if user_cmd == "LOGOUT":
-                            break
+                            print(f"[DISCONNECT] {addr} has logged out.")
+                            logout_flag = True
+                            break  # Exit the loop
 
                         elif user_cmd == "TASK":
                             sendToClient("PRINT@"
@@ -202,7 +213,7 @@ def handle_client(conn, addr):
                                         # Update the last data and time
                                         last_bytes_received = bytes_received
                                         last_time = current_time
-
+                                f.close()
                                 end_time = time.time()
                                 transfer_time = end_time - start_time
                                 data_rate = bytes_received / transfer_time
@@ -253,7 +264,6 @@ def handle_client(conn, addr):
                                 sendToClient(
                                     f"PRINT@File {filename} sent successfully. Transfer time: {transfer_time}s. Rate: {data_rate} bytes/s.")
                                 log_to_file()
-                                plot_graph()
                             except FileNotFoundError:
                                 conn.send("PRINT@@File not found".encode(FORMAT))
                                 print(f"File {filename} not found.")
@@ -264,7 +274,7 @@ def handle_client(conn, addr):
                             try:
                                 if os.path.exists(f"{current_dir}/{filename}"):
                                     os.remove(f"{current_dir}/{filename}")
-                                    sendToClient("PRINT@OK")
+                                    sendToClient("OK")
                                     print(f"File {filename} deleted successfully.")
                                 else:
                                     sendToClient("PRINT@@File not found")
@@ -298,15 +308,9 @@ def handle_client(conn, addr):
                                     print(f"Error deleting directory \"{requested_sub_dir}\": {str(e)}")
                             else:
                                 sendToClient("PRINT@Directory not found or is not a subdirectory")
-
-
-
                         else:
                             sendToClient("PRINT@[ERROR] Invalid command.\n")
                         sendToClient(f"OK@Current Directory: {current_dir[10:]}")
-
-
-
                 else:
                     print(f"[ACCOUNT LOGIN] User {username} password was invalid.")
                     sendToClient("OK@Invalid password, please try again.")
@@ -315,7 +319,6 @@ def handle_client(conn, addr):
                 print(f"[ACCOUNT LOGIN] User {username} does not exist.")
                 sendToClient("OK@User does not exist.")
                 continue
-
         elif cmd == "TASK":  # If TASK is received from client, send the following message
             sendToClient("OK@LOGOUT from the server. \n"
                          "SIGNUP for the server.\n"
